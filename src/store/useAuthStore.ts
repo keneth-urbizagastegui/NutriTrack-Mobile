@@ -1,0 +1,108 @@
+import { create } from 'zustand';
+import * as SecureStore from 'expo-secure-store';
+
+export interface UserSession {
+  id: number;
+  username: string;
+  email: string;
+  roles: string[];
+}
+
+interface AuthState {
+  user: UserSession | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  isAuthenticated: boolean;
+  sessionAllergens: any[];
+  login: (username: string, access: string, refresh: string) => Promise<void>;
+  logout: () => Promise<void>;
+  updateAccessToken: (access: string) => Promise<void>;
+  setSessionAllergens: (allergens: any[]) => Promise<void>;
+  hydrate: () => Promise<void>;
+}
+
+const getRolesFromUsername = (username: string): string[] => {
+  const roles = ['ROLE_USER'];
+  if (username.toLowerCase().includes('admin')) {
+    roles.push('ROLE_ADMIN');
+    roles.push('ROLE_MANAGER');
+  } else if (username.toLowerCase().includes('manager')) {
+    roles.push('ROLE_MANAGER');
+  }
+  return roles;
+};
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  accessToken: null,
+  refreshToken: null,
+  isAuthenticated: false,
+  sessionAllergens: [],
+
+  login: async (username, access, refresh) => {
+    const roles = getRolesFromUsername(username);
+    const userData: UserSession = {
+      id: Date.now(),
+      username,
+      email: `${username}@utec.edu.pe`,
+      roles,
+    };
+
+    await SecureStore.setItemAsync('accessToken', access);
+    await SecureStore.setItemAsync('refreshToken', refresh);
+    await SecureStore.setItemAsync('user', JSON.stringify(userData));
+    await SecureStore.setItemAsync('sessionAllergens', JSON.stringify([]));
+
+    set({
+      user: userData,
+      accessToken: access,
+      refreshToken: refresh,
+      isAuthenticated: true,
+      sessionAllergens: [],
+    });
+  },
+
+  logout: async () => {
+    await SecureStore.deleteItemAsync('accessToken');
+    await SecureStore.deleteItemAsync('refreshToken');
+    await SecureStore.deleteItemAsync('user');
+    await SecureStore.deleteItemAsync('sessionAllergens');
+
+    set({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isAuthenticated: false,
+      sessionAllergens: [],
+    });
+  },
+
+  updateAccessToken: async (access) => {
+    await SecureStore.setItemAsync('accessToken', access);
+    set({ accessToken: access });
+  },
+
+  setSessionAllergens: async (allergens) => {
+    await SecureStore.setItemAsync('sessionAllergens', JSON.stringify(allergens));
+    set({ sessionAllergens: allergens });
+  },
+
+  hydrate: async () => {
+    try {
+      const storedAccess = await SecureStore.getItemAsync('accessToken');
+      const storedRefresh = await SecureStore.getItemAsync('refreshToken');
+      const storedUser = await SecureStore.getItemAsync('user');
+      const storedAllergens = await SecureStore.getItemAsync('sessionAllergens');
+
+      set({
+        accessToken: storedAccess,
+        refreshToken: storedRefresh,
+        user: storedUser ? JSON.parse(storedUser) : null,
+        isAuthenticated: !!storedAccess,
+        sessionAllergens: storedAllergens ? JSON.parse(storedAllergens) : [],
+      });
+    } catch (e) {
+      console.error('Error hydrating mobile auth session', e);
+    }
+  },
+}));
