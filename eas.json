@@ -11,6 +11,10 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://nu-3303b52537654fe08cbbab1f5ab461ab.ecs.us-east-1.on.aws/api/v1",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyDP23Y-n7Ig8_KJVELDwEPDSaBWbJ0Yo3U"
       }
     },
     "production": {}
