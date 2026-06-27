@@ -7,6 +7,11 @@ module.exports = {
     icon: "./assets/images/icon.png",
     scheme: "nutritrackmobile",
     userInterfaceStyle: "automatic",
+    extra: {
+      eas: {
+        projectId: "a7542a16-91fb-4721-aeb6-0a48d364c36d"
+      }
+    },
     ios: {
       icon: "./assets/expo.icon",
       infoPlist: {
@@ -15,6 +20,7 @@ module.exports = {
       }
     },
     android: {
+      package: "com.kenuf26.nutritrackmobile",
       adaptiveIcon: {
         backgroundColor: "#E6F4FE",
         foregroundImage: "./assets/images/android-icon-foreground.png",
