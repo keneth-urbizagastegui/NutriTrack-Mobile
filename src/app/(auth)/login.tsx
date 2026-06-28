@@ -24,10 +24,11 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      const response = await api.post('/auth/login', { username, password });
+      const cleanUsername = username.trim().toLowerCase();
+      const response = await api.post('/auth/login', { username: cleanUsername, password: password.trim() });
       const { accessToken, refreshToken } = response.data;
       
-      await login(username, accessToken, refreshToken);
+      await login(cleanUsername, accessToken, refreshToken);
       
       // La navegación automática de _layout nos mandará a (tabs)
     } catch (err: any) {
