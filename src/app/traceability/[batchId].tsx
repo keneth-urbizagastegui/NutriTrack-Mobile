@@ -6,6 +6,8 @@ import { api } from '../../services/api';
 import * as WebBrowser from 'expo-web-browser';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import MapView, { Marker } from 'react-native-maps';
+import { useAuthStore } from '../../store/useAuthStore';
+import * as SecureStore from 'expo-secure-store';
 
 interface TimelineStep {
   ingredientName: string;
@@ -46,15 +48,57 @@ const SUPPLIER_COORDINATES: Record<string, { latitude: number; longitude: number
 export default function TraceabilityScreen() {
   const { batchId } = useLocalSearchParams<{ batchId: string }>();
   const router = useRouter();
+  const { sessionAllergens } = useAuthStore();
 
   const [data, setData] = useState<TraceabilityData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [matchedAllergens, setMatchedAllergens] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (data && sessionAllergens && sessionAllergens.length > 0) {
+      const userAllergenNames = sessionAllergens.map((a: any) => a.name.toLowerCase().trim());
+      const matches = data.timeline
+        .filter(step => userAllergenNames.includes(step.ingredientName.toLowerCase().trim()))
+        .map(step => step.ingredientName);
+      
+      setMatchedAllergens(matches);
+      
+      if (matches.length > 0) {
+        Alert.alert(
+          '⚠️ ALERTA DE ALÉRGENOS',
+          `Este lote contiene ingredientes a los que eres alérgico: ${matches.join(', ')}. Evita consumir este producto.`,
+          [{ text: 'Entendido' }]
+        );
+      }
+    }
+  }, [data, sessionAllergens]);
+
+  const saveToHistory = async (batch: TraceabilityData) => {
+    try {
+      const storedHistory = await SecureStore.getItemAsync('scan_history');
+      let historyList = storedHistory ? JSON.parse(storedHistory) : [];
+      historyList = historyList.filter((item: any) => item.batchId !== batch.batchId.toString());
+      historyList.unshift({
+        batchId: batch.batchId.toString(),
+        batchNumber: batch.batchNumber,
+        productName: batch.productName,
+        scanDate: new Date().toISOString(),
+      });
+      if (historyList.length > 10) {
+        historyList = historyList.slice(0, 10);
+      }
+      await SecureStore.setItemAsync('scan_history', JSON.stringify(historyList));
+    } catch (e) {
+      console.error('Error saving scan history', e);
+    }
+  };
 
   const fetchTraceability = async () => {
     try {
       setLoading(true);
       const response = await api.get(`/batches/${batchId}/traceability`);
       setData(response.data);
+      saveToHistory(response.data);
     } catch (err: any) {
       console.error(err);
       Alert.alert('Error', 'No se pudieron recuperar los detalles de trazabilidad del lote.');
@@ -165,6 +209,26 @@ export default function TraceabilityScreen() {
             </View>
           </Card.Content>
         </Card>
+
+        {/* Banner de Advertencia de Alérgenos */}
+        {matchedAllergens.length > 0 && (
+          <Card style={styles.allergenAlertCard}>
+            <Card.Content style={styles.allergenAlertContent}>
+              <MaterialCommunityIcons name="alert-octagon" size={32} color="#f43f5e" />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text variant="titleMedium" style={{ color: '#f43f5e', fontWeight: 'bold' }}>
+                  ⚠️ CONTIENE ALÉRGENOS
+                </Text>
+                <Text variant="bodySmall" style={{ color: '#94a3b8', marginTop: 4, lineHeight: 18 }}>
+                  Este producto contiene ingredientes registrados como alérgenos en tu perfil:
+                </Text>
+                <Text variant="bodyMedium" style={{ color: '#fff', fontWeight: 'bold', marginTop: 4 }}>
+                  {matchedAllergens.join(', ')}
+                </Text>
+              </View>
+            </Card.Content>
+          </Card>
+        )}
 
         {/* Línea de Tiempo de Ingredientes */}
         <Text variant="titleMedium" style={styles.sectionTitle}>Línea de Tiempo de Ingredientes</Text>
@@ -456,5 +520,18 @@ const styles = StyleSheet.create({
     borderColor: '#f43f5e',
     paddingVertical: 4,
     marginTop: 10,
+  },
+  allergenAlertCard: {
+    backgroundColor: 'rgba(244, 63, 94, 0.1)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#f43f5e',
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  allergenAlertContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
   },
 });

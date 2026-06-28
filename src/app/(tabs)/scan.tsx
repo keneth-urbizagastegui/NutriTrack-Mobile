@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Button, Pressable } from 'react-native';
+import { StyleSheet, Text, View, Button, Pressable, ScrollView } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter, useNavigation } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 
 export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -10,10 +11,24 @@ export default function ScanScreen() {
   const router = useRouter();
   const navigation = useNavigation();
 
-  // Resetear escáner al enfocar la pantalla
+  const [history, setHistory] = useState<any[]>([]);
+
+  const fetchHistory = async () => {
+    try {
+      const stored = await SecureStore.getItemAsync('scan_history');
+      if (stored) {
+        setHistory(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error('Error loading scan history', e);
+    }
+  };
+
+  // Resetear escáner y cargar historial al enfocar la pantalla
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       setScanned(false);
+      fetchHistory();
     });
     return unsubscribe;
   }, [navigation]);
@@ -86,6 +101,31 @@ export default function ScanScreen() {
           <Pressable onPress={() => setScanned(false)} style={styles.scanAgainBtn}>
             <Text style={styles.scanAgainText}>Escanear de nuevo</Text>
           </Pressable>
+        </View>
+      )}
+
+      {/* Historial de Escaneos Recientes */}
+      {history.length > 0 && !scanned && (
+        <View style={styles.historyContainer}>
+          <Text style={styles.historyTitle}>
+            <MaterialCommunityIcons name="history" size={16} color="#10b981" /> Escaneos Recientes
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.historyList}>
+            {history.map((item, idx) => (
+              <Pressable
+                key={idx}
+                style={styles.historyCard}
+                onPress={() => router.push(`/traceability/${item.batchId}`)}
+              >
+                <MaterialCommunityIcons name="pill" size={20} color="#10b981" style={{ marginBottom: 4 }} />
+                <Text style={styles.historyCardName} numberOfLines={1}>{item.productName}</Text>
+                <Text style={styles.historyCardLote} numberOfLines={1}>Lote: {item.batchNumber}</Text>
+                <Text style={styles.historyCardDate}>
+                  {new Date(item.scanDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
         </View>
       )}
     </View>
@@ -208,5 +248,49 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 15,
+  },
+  historyContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  historyTitle: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  historyList: {
+    gap: 12,
+  },
+  historyCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 10,
+    width: 140,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  historyCardName: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  historyCardLote: {
+    color: '#94a3b8',
+    fontSize: 10,
+    marginTop: 2,
+  },
+  historyCardDate: {
+    color: '#64748b',
+    fontSize: 9,
+    marginTop: 4,
+    textAlign: 'right',
   },
 });

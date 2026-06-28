@@ -5,6 +5,7 @@ import { useRouter, useNavigation } from 'expo-router';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Svg, { Circle, G } from 'react-native-svg';
 
 interface ConsumptionLog {
   id: number;
@@ -17,6 +18,86 @@ interface ConsumptionLog {
     fat: number;
   };
 }
+
+interface RingProps {
+  progress: number;
+  size: number;
+  strokeWidth: number;
+  color: string;
+  index: number;
+}
+
+const MacroRing: React.FC<RingProps> = ({ progress, size, strokeWidth, color, index }) => {
+  const radius = size / 2 - (index * (strokeWidth + 6)) - strokeWidth;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (Math.min(progress, 1) * circumference);
+
+  return (
+    <G rotation="-90" origin={`${size / 2}, ${size / 2}`}>
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={color}
+        strokeWidth={strokeWidth}
+        fill="transparent"
+        opacity={0.15}
+      />
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={color}
+        strokeWidth={strokeWidth}
+        fill="transparent"
+        strokeDasharray={circumference}
+        strokeDashoffset={strokeDashoffset}
+        strokeLinecap="round"
+      />
+    </G>
+  );
+};
+
+interface ConcentricProps {
+  proteinProgress: number;
+  carbsProgress: number;
+  fatProgress: number;
+  calories: number;
+  targetCalories: number;
+}
+
+const ConcentricProgressRings: React.FC<ConcentricProps> = ({
+  proteinProgress,
+  carbsProgress,
+  fatProgress,
+  calories,
+  targetCalories,
+}) => {
+  const size = 160;
+  const strokeWidth = 10;
+
+  return (
+    <View style={styles.ringWrapper}>
+      <Svg width={size} height={size}>
+        <MacroRing progress={proteinProgress} size={size} strokeWidth={strokeWidth} color="#10b981" index={0} />
+        <MacroRing progress={carbsProgress} size={size} strokeWidth={strokeWidth} color="#06b6d4" index={1} />
+        <MacroRing progress={fatProgress} size={size} strokeWidth={strokeWidth} color="#eab308" index={2} />
+      </Svg>
+      
+      <View style={styles.ringCenterText}>
+        <Text variant="headlineMedium" style={{ fontWeight: '900', color: '#fff', textAlign: 'center' }}>
+          {calories}
+        </Text>
+        <Text variant="labelSmall" style={{ color: '#64748b', fontSize: 9, textAlign: 'center', marginTop: 2, textTransform: 'uppercase' }}>
+          Kcal Hoy
+        </Text>
+        <Text variant="labelSmall" style={{ color: '#10b981', fontWeight: 'bold', fontSize: 9, textAlign: 'center', marginTop: 1 }}>
+          Meta: {targetCalories}
+        </Text>
+      </View>
+    </View>
+  );
+};
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -104,61 +185,56 @@ export default function HomeScreen() {
 
       {/* Tarjeta de Calorías y Progreso */}
       <Card style={styles.macroCard} contentStyle={styles.macroCardContent}>
-        <View style={styles.calorieRow}>
-          <View>
-            <Text variant="displaySmall" style={styles.calorieValue}>{dailyMacros.calories}</Text>
-            <Text variant="labelMedium" style={styles.calorieLabel}>Kcal Consumidas de {targets.calories}</Text>
-          </View>
-          <View style={styles.flameContainer}>
-            <MaterialCommunityIcons name="fire" size={48} color="#f97316" />
-          </View>
-        </View>
-        
-        <ProgressBar 
-          progress={Math.min(dailyMacros.calories / targets.calories, 1)} 
-          color="#10b981" 
-          style={styles.mainProgress} 
-        />
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {/* Anillos Concéntricos (Izquierda) */}
+          <ConcentricProgressRings
+            proteinProgress={dailyMacros.protein / targets.protein}
+            carbsProgress={dailyMacros.carbs / targets.carbs}
+            fatProgress={dailyMacros.fat / targets.fat}
+            calories={dailyMacros.calories}
+            targetCalories={targets.calories}
+          />
 
-        {/* Progreso de Macronutrientes individuales */}
-        <View style={styles.individualMacros}>
-          {/* Proteína */}
-          <View style={styles.macroCol}>
-            <View style={styles.macroColHeader}>
-              <Text variant="bodySmall" style={styles.macroName}>Proteínas</Text>
-              <Text variant="bodySmall" style={styles.macroStat}>{dailyMacros.protein}g / {targets.protein}g</Text>
+          {/* Barras de Macronutrientes (Derecha) */}
+          <View style={{ flex: 1, gap: 10 }}>
+            {/* Proteína */}
+            <View style={styles.macroCol}>
+              <View style={styles.macroColHeader}>
+                <Text variant="bodySmall" style={[styles.macroName, { color: '#10b981' }]}>Proteína</Text>
+                <Text variant="bodySmall" style={styles.macroStat}>{Math.round(dailyMacros.protein)}g/{targets.protein}g</Text>
+              </View>
+              <ProgressBar 
+                progress={Math.min(dailyMacros.protein / targets.protein, 1)} 
+                color="#10b981" 
+                style={styles.macroBar} 
+              />
             </View>
-            <ProgressBar 
-              progress={Math.min(dailyMacros.protein / targets.protein, 1)} 
-              color="#10b981" 
-              style={styles.macroBar} 
-            />
-          </View>
 
-          {/* Carbos */}
-          <View style={styles.macroCol}>
-            <View style={styles.macroColHeader}>
-              <Text variant="bodySmall" style={styles.macroName}>Carbohidratos</Text>
-              <Text variant="bodySmall" style={styles.macroStat}>{dailyMacros.carbs}g / {targets.carbs}g</Text>
+            {/* Carbos */}
+            <View style={styles.macroCol}>
+              <View style={styles.macroColHeader}>
+                <Text variant="bodySmall" style={[styles.macroName, { color: '#06b6d4' }]}>Carbos</Text>
+                <Text variant="bodySmall" style={styles.macroStat}>{Math.round(dailyMacros.carbs)}g/{targets.carbs}g</Text>
+              </View>
+              <ProgressBar 
+                progress={Math.min(dailyMacros.carbs / targets.carbs, 1)} 
+                color="#06b6d4" 
+                style={styles.macroBar} 
+              />
             </View>
-            <ProgressBar 
-              progress={Math.min(dailyMacros.carbs / targets.carbs, 1)} 
-              color="#06b6d4" 
-              style={styles.macroBar} 
-            />
-          </View>
 
-          {/* Grasa */}
-          <View style={styles.macroCol}>
-            <View style={styles.macroColHeader}>
-              <Text variant="bodySmall" style={styles.macroName}>Grasas</Text>
-              <Text variant="bodySmall" style={styles.macroStat}>{dailyMacros.fat}g / {targets.fat}g</Text>
+            {/* Grasa */}
+            <View style={styles.macroCol}>
+              <View style={styles.macroColHeader}>
+                <Text variant="bodySmall" style={[styles.macroName, { color: '#eab308' }]}>Grasas</Text>
+                <Text variant="bodySmall" style={styles.macroStat}>{Math.round(dailyMacros.fat)}g/{targets.fat}g</Text>
+              </View>
+              <ProgressBar 
+                progress={Math.min(dailyMacros.fat / targets.fat, 1)} 
+                color="#eab308" 
+                style={styles.macroBar} 
+              />
             </View>
-            <ProgressBar 
-              progress={Math.min(dailyMacros.fat / targets.fat, 1)} 
-              color="#eab308" 
-              style={styles.macroBar} 
-            />
           </View>
         </View>
       </Card>
@@ -362,5 +438,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 18,
+  },
+  ringWrapper: {
+    width: 160,
+    height: 160,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    marginRight: 16,
+  },
+  ringCenterText: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 110,
   },
 });
