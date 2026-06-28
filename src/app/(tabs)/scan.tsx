@@ -8,6 +8,7 @@ import * as SecureStore from 'expo-secure-store';
 export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const router = useRouter();
   const navigation = useNavigation();
 
@@ -107,25 +108,44 @@ export default function ScanScreen() {
       {/* Historial de Escaneos Recientes */}
       {history.length > 0 && !scanned && (
         <View style={styles.historyContainer}>
-          <Text style={styles.historyTitle}>
-            <MaterialCommunityIcons name="history" size={16} color="#10b981" /> Escaneos Recientes
-          </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.historyList}>
-            {history.map((item, idx) => (
-              <Pressable
-                key={idx}
-                style={styles.historyCard}
-                onPress={() => router.push(`/traceability/${item.batchId}`)}
-              >
-                <MaterialCommunityIcons name="pill" size={20} color="#10b981" style={{ marginBottom: 4 }} />
-                <Text style={styles.historyCardName} numberOfLines={1}>{item.productName}</Text>
-                <Text style={styles.historyCardLote} numberOfLines={1}>Lote: {item.batchNumber}</Text>
-                <Text style={styles.historyCardDate}>
-                  {new Date(item.scanDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          <Pressable 
+            onPress={() => setIsCollapsed(!isCollapsed)} 
+            style={styles.historyHeader}
+          >
+            <View style={styles.historyHeaderTitle}>
+              <MaterialCommunityIcons name="history" size={16} color="#10b981" />
+              <Text style={styles.historyTitle}> Escaneos Recientes ({history.length})</Text>
+            </View>
+            <MaterialCommunityIcons 
+              name={isCollapsed ? "chevron-up" : "chevron-down"} 
+              size={20} 
+              color="#94a3b8" 
+            />
+          </Pressable>
+          
+          {!isCollapsed && (
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false} 
+              contentContainerStyle={styles.historyList}
+              style={{ marginTop: 10 }}
+            >
+              {history.map((item, idx) => (
+                <Pressable
+                  key={idx}
+                  style={styles.historyCard}
+                  onPress={() => router.push(`/traceability/${item.batchId}`)}
+                >
+                  <MaterialCommunityIcons name="pill" size={20} color="#10b981" style={{ marginBottom: 4 }} />
+                  <Text style={styles.historyCardName} numberOfLines={1}>{item.productName}</Text>
+                  <Text style={styles.historyCardLote} numberOfLines={1}>Lote: {item.batchNumber}</Text>
+                  <Text style={styles.historyCardDate}>
+                    {new Date(item.scanDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
         </View>
       )}
     </View>
@@ -264,7 +284,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: 'bold',
-    marginBottom: 10,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  historyHeaderTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   historyList: {
     gap: 12,

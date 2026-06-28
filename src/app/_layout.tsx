@@ -25,7 +25,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     hydrate();
-  }, []);
+  }, [hydrate]);
 
   useEffect(() => {
     // Si la sesión no ha terminado de cargarse, esperamos
@@ -36,7 +36,7 @@ export default function RootLayout() {
     } else if (isAuthenticated && inAuthGroup) {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, segments]);
+  }, [isAuthenticated, segments, router]);
 
   return (
     <SafeAreaProvider>

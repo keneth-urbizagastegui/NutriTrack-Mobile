@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, FlatList, RefreshControl, Pressable } from 'react-native';
-import { Text, Button, Card, ProgressBar, useTheme, Surface } from 'react-native-paper';
-import { useRouter, useNavigation } from 'expo-router';
+import { StyleSheet, View, FlatList, RefreshControl } from 'react-native';
+import { Text, Button, Card, ProgressBar } from 'react-native-paper';
+import { useRouter } from 'expo-router';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -100,7 +100,6 @@ const ConcentricProgressRings: React.FC<ConcentricProps> = ({
 };
 
 export default function HomeScreen() {
-  const theme = useTheme();
   const router = useRouter();
   const { user } = useAuthStore();
 
@@ -108,22 +107,42 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [dailyMacros, setDailyMacros] = useState({ protein: 0, carbs: 0, fat: 0, calories: 0 });
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  // Objetivos de macros (fijados como estándar para deportistas)
   const targets = { protein: 150, carbs: 200, fat: 70, calories: 2000 };
 
-  const fetchConsumption = async () => {
-    try {
+  const fetchConsumption = async (resetPage = false) => {
+    const targetPage = resetPage ? 0 : page;
+    if (resetPage) {
       setLoading(true);
+      setHasMore(true);
+    } else {
+      if (!hasMore || loadingMore) return;
+      setLoadingMore(true);
+    }
+
+    try {
       const response = await api.get('/consumption', {
-        params: { page: 0, size: 10, sort: 'consumptionDate,desc' }
+        params: { page: targetPage, size: 10, sort: 'consumptionDate,desc' }
       });
       const logs = response.data.content || [];
-      setHistory(logs);
+      const isLast = response.data.last;
 
-      // Calcular macros del día
+      let newHistory: ConsumptionLog[] = [];
+      if (resetPage) {
+        newHistory = logs;
+        setPage(1);
+      } else {
+        newHistory = [...history, ...logs];
+        setPage(targetPage + 1);
+      }
+      setHistory(newHistory);
+      setHasMore(!isLast);
+
       const todayStr = new Date().toISOString().split('T')[0];
-      const todayLogs = logs.filter((log: ConsumptionLog) => 
+      const todayLogs = newHistory.filter((log: ConsumptionLog) => 
         log.consumptionDate.startsWith(todayStr)
       );
 
@@ -145,142 +164,150 @@ export default function HomeScreen() {
       console.error('Error fetching consumption history', err);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
       setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchConsumption();
+    const timer = setTimeout(() => {
+      fetchConsumption(true);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchConsumption();
+    fetchConsumption(true);
   };
 
-  // Escucha cuando la pantalla vuelve a tener foco para refrescar
-  // En Expo Router/React Navigation podemos usar hooks de navegación, o simplemente refrescar al abrir el modal
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchConsumption();
-    }, 5000); // Auto-refresca cada 5s para sincronización en tiempo real
+      fetchConsumption(true);
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <ScrollView 
+    <FlatList
+      data={history}
+      keyExtractor={(item) => item.id.toString()}
       style={styles.container}
       contentContainerStyle={styles.content}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10b981" />
       }
-    >
-      {/* Saludo inicial */}
-      <View style={styles.welcomeSection}>
-        <Text variant="headlineSmall" style={styles.welcomeText}>¡Hola, {user?.username}!</Text>
-        <Text variant="bodyMedium" style={styles.dateText}>
-          {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-        </Text>
-      </View>
-
-      {/* Tarjeta de Calorías y Progreso */}
-      <Card style={styles.macroCard} contentStyle={styles.macroCardContent}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {/* Anillos Concéntricos (Izquierda) */}
-          <ConcentricProgressRings
-            proteinProgress={dailyMacros.protein / targets.protein}
-            carbsProgress={dailyMacros.carbs / targets.carbs}
-            fatProgress={dailyMacros.fat / targets.fat}
-            calories={dailyMacros.calories}
-            targetCalories={targets.calories}
-          />
-
-          {/* Barras de Macronutrientes (Derecha) */}
-          <View style={{ flex: 1, gap: 10 }}>
-            {/* Proteína */}
-            <View style={styles.macroCol}>
-              <View style={styles.macroColHeader}>
-                <Text variant="bodySmall" style={[styles.macroName, { color: '#10b981' }]}>Proteína</Text>
-                <Text variant="bodySmall" style={styles.macroStat}>{Math.round(dailyMacros.protein)}g/{targets.protein}g</Text>
-              </View>
-              <ProgressBar 
-                progress={Math.min(dailyMacros.protein / targets.protein, 1)} 
-                color="#10b981" 
-                style={styles.macroBar} 
-              />
-            </View>
-
-            {/* Carbos */}
-            <View style={styles.macroCol}>
-              <View style={styles.macroColHeader}>
-                <Text variant="bodySmall" style={[styles.macroName, { color: '#06b6d4' }]}>Carbos</Text>
-                <Text variant="bodySmall" style={styles.macroStat}>{Math.round(dailyMacros.carbs)}g/{targets.carbs}g</Text>
-              </View>
-              <ProgressBar 
-                progress={Math.min(dailyMacros.carbs / targets.carbs, 1)} 
-                color="#06b6d4" 
-                style={styles.macroBar} 
-              />
-            </View>
-
-            {/* Grasa */}
-            <View style={styles.macroCol}>
-              <View style={styles.macroColHeader}>
-                <Text variant="bodySmall" style={[styles.macroName, { color: '#eab308' }]}>Grasas</Text>
-                <Text variant="bodySmall" style={styles.macroStat}>{Math.round(dailyMacros.fat)}g/{targets.fat}g</Text>
-              </View>
-              <ProgressBar 
-                progress={Math.min(dailyMacros.fat / targets.fat, 1)} 
-                color="#eab308" 
-                style={styles.macroBar} 
-              />
-            </View>
+      onEndReached={() => fetchConsumption(false)}
+      onEndReachedThreshold={0.3}
+      ListHeaderComponent={
+        <>
+          {/* Saludo inicial */}
+          <View style={styles.welcomeSection}>
+            <Text variant="headlineSmall" style={styles.welcomeText}>¡Hola, {user?.username}!</Text>
+            <Text variant="bodyMedium" style={styles.dateText}>
+              {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </Text>
           </View>
-        </View>
-      </Card>
 
-      {/* Botón de Registro Rápido */}
-      <Button 
-        mode="contained" 
-        onPress={() => router.push('/consume')} 
-        style={styles.consumeButton}
-        icon="plus-circle"
-      >
-        Registrar Consumo
-      </Button>
+          {/* Tarjeta de Calorías y Progreso */}
+          <Card style={styles.macroCard} contentStyle={styles.macroCardContent}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <ConcentricProgressRings
+                proteinProgress={dailyMacros.protein / targets.protein}
+                carbsProgress={dailyMacros.carbs / targets.carbs}
+                fatProgress={dailyMacros.fat / targets.fat}
+                calories={dailyMacros.calories}
+                targetCalories={targets.calories}
+              />
+              <View style={{ flex: 1, gap: 10 }}>
+                <View style={styles.macroCol}>
+                  <View style={styles.macroColHeader}>
+                    <Text variant="bodySmall" style={[styles.macroName, { color: '#10b981' }]}>Proteína</Text>
+                    <Text variant="bodySmall" style={styles.macroStat}>{Math.round(dailyMacros.protein)}g/{targets.protein}g</Text>
+                  </View>
+                  <ProgressBar 
+                    progress={Math.min(dailyMacros.protein / targets.protein, 1)} 
+                    color="#10b981" 
+                    style={styles.macroBar} 
+                  />
+                </View>
+                <View style={styles.macroCol}>
+                  <View style={styles.macroColHeader}>
+                    <Text variant="bodySmall" style={[styles.macroName, { color: '#06b6d4' }]}>Carbos</Text>
+                    <Text variant="bodySmall" style={styles.macroStat}>{Math.round(dailyMacros.carbs)}g/{targets.carbs}g</Text>
+                  </View>
+                  <ProgressBar 
+                    progress={Math.min(dailyMacros.carbs / targets.carbs, 1)} 
+                    color="#06b6d4" 
+                    style={styles.macroBar} 
+                  />
+                </View>
+                <View style={styles.macroCol}>
+                  <View style={styles.macroColHeader}>
+                    <Text variant="bodySmall" style={[styles.macroName, { color: '#eab308' }]}>Grasas</Text>
+                    <Text variant="bodySmall" style={styles.macroStat}>{Math.round(dailyMacros.fat)}g/{targets.fat}g</Text>
+                  </View>
+                  <ProgressBar 
+                    progress={Math.min(dailyMacros.fat / targets.fat, 1)} 
+                    color="#eab308" 
+                    style={styles.macroBar} 
+                  />
+                </View>
+              </View>
+            </View>
+          </Card>
 
-      {/* Historial de Ingestas de Hoy */}
-      <View style={styles.historySection}>
-        <Text variant="titleMedium" style={styles.historyTitle}>Historial de Ingestas Recientes</Text>
-        {loading && history.length === 0 ? (
+          {/* Botón de Registro Rápido */}
+          <Button 
+            mode="contained" 
+            onPress={() => router.push('/consume')} 
+            style={styles.consumeButton}
+            icon="plus-circle"
+          >
+            Registrar Consumo
+          </Button>
+
+          <View style={styles.historySection}>
+            <Text variant="titleMedium" style={styles.historyTitle}>Historial de Ingestas Recientes</Text>
+          </View>
+        </>
+      }
+      ListEmptyComponent={
+        loading ? (
           <Text style={styles.emptyText}>Cargando consumos...</Text>
-        ) : history.length === 0 ? (
+        ) : (
           <View style={styles.emptyContainer}>
             <MaterialCommunityIcons name="silverware-fork-knife" size={40} color="#64748b" />
             <Text style={styles.emptyText}>Aún no registras consumos hoy.</Text>
             <Text style={styles.emptySubText}>Escanear el QR o ingresa un consumo usando el botón superior.</Text>
           </View>
-        ) : (
-          history.map((item) => (
-            <Card key={item.id} style={styles.logCard}>
-              <Card.Content style={styles.logCardContent}>
-                <View style={styles.logHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text variant="bodyLarge" style={styles.logProductName}>{item.productName}</Text>
-                    <Text variant="bodySmall" style={styles.logDate}>
-                      {new Date(item.consumptionDate).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} • {item.quantityGrams}g
-                    </Text>
-                  </View>
-                  <View style={styles.logMacrosBadge}>
-                    <Text style={styles.logMacrosText}>P: {Math.round(item.consumedMacros.protein)}g</Text>
-                  </View>
-                </View>
-              </Card.Content>
-            </Card>
-          ))
-        )}
-      </View>
-    </ScrollView>
+        )
+      }
+      renderItem={({ item }) => (
+        <Card style={styles.logCard}>
+          <Card.Content style={styles.logCardContent}>
+            <View style={styles.logHeader}>
+              <View style={{ flex: 1 }}>
+                <Text variant="bodyLarge" style={styles.logProductName}>{item.productName}</Text>
+                <Text variant="bodySmall" style={styles.logDate}>
+                  {new Date(item.consumptionDate).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} • {item.quantityGrams}g
+                </Text>
+              </View>
+              <View style={styles.logMacrosBadge}>
+                <Text style={styles.logMacrosText}>P: {Math.round(item.consumedMacros.protein)}g</Text>
+              </View>
+            </View>
+          </Card.Content>
+        </Card>
+      )}
+      ListFooterComponent={
+        loadingMore ? (
+          <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+            <Text style={{ color: '#64748b', fontSize: 12 }}>Cargando más consumos...</Text>
+          </View>
+        ) : null
+      }
+    />
   );
 }
 

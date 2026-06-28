@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, ScrollView, FlatList, Pressable, Alert } from 'react-native';
-import { Text, Button, Card, Switch, useTheme, Divider, ActivityIndicator } from 'react-native-paper';
+import { StyleSheet, View, FlatList, Pressable, Alert } from 'react-native';
+import { Text, Button, Card, Switch, Divider, ActivityIndicator } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
@@ -15,30 +15,54 @@ interface Ingredient {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const theme = useTheme();
   const { user, logout, sessionAllergens, setSessionAllergens } = useAuthStore();
 
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchIngredients = async () => {
-    try {
+  const fetchIngredients = async (resetPage = false) => {
+    const targetPage = resetPage ? 0 : page;
+    if (resetPage) {
       setLoading(true);
+      setHasMore(true);
+    } else {
+      if (!hasMore || loadingMore) return;
+      setLoadingMore(true);
+    }
+
+    try {
       const response = await api.get('/ingredients', {
-        params: { page: 0, size: 50, sort: 'name,asc' }
+        params: { page: targetPage, size: 15, sort: 'name,asc' }
       });
-      setIngredients(response.data.content || []);
+      const content = response.data.content || [];
+      const isLast = response.data.last;
+
+      if (resetPage) {
+        setIngredients(content);
+        setPage(1);
+      } else {
+        setIngredients(prev => [...prev, ...content]);
+        setPage(targetPage + 1);
+      }
+      setHasMore(!isLast);
     } catch (err: any) {
       console.error('Error fetching ingredients', err);
       Alert.alert('Error', 'No se pudo cargar el catálogo de ingredientes.');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
-    fetchIngredients();
+    const timer = setTimeout(() => {
+      fetchIngredients(true);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleToggleAllergen = async (ingredient: Ingredient) => {
@@ -85,84 +109,95 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Tarjeta de Datos del Usuario */}
-      <Card style={styles.profileCard}>
-        <Card.Content style={styles.profileContent}>
-          <View style={styles.avatarContainer}>
-            <MaterialCommunityIcons name="account-circle" size={80} color="#10b981" />
-          </View>
-          <View style={styles.userInfo}>
-            <Text variant="headlineSmall" style={styles.username}>{user?.username}</Text>
-            <Text variant="bodyMedium" style={styles.email}>{user?.email}</Text>
-            <View style={styles.rolesRow}>
-              {user?.roles.map((role, idx) => (
-                <View key={idx} style={styles.roleBadge}>
-                  <Text style={styles.roleText}>{role.replace('ROLE_', '')}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </Card.Content>
-      </Card>
-
-      {/* Sección de Alérgenos */}
-      <Text variant="titleMedium" style={styles.sectionTitle}>
-        Mis Alérgenos Registrados ({sessionAllergens.length})
-      </Text>
-      
-      <Card style={styles.allergensCard}>
-        <Card.Content style={{ padding: 0 }}>
-          {loading ? (
-            <ActivityIndicator size="small" color="#10b981" style={{ padding: 20 }} />
-          ) : ingredients.length === 0 ? (
-            <Text style={styles.emptyText}>No hay ingredientes en el catálogo.</Text>
-          ) : (
-            ingredients.map((item, index) => {
-              const isSelected = sessionAllergens.some((a) => a.id === item.id);
-              const isSaving = savingId === item.id;
-
-              return (
-                <View key={item.id}>
-                  <Pressable 
-                    onPress={() => !isSaving && handleToggleAllergen(item)}
-                    style={styles.ingredientRow}
-                  >
-                    <View style={{ flex: 1, marginRight: 8 }}>
-                      <Text variant="bodyLarge" style={styles.ingredientName}>{item.name}</Text>
-                      {item.description ? (
-                        <Text variant="bodySmall" style={styles.ingredientDesc}>{item.description}</Text>
-                      ) : null}
+    <FlatList
+      data={ingredients}
+      keyExtractor={(item) => item.id.toString()}
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      onEndReached={() => fetchIngredients(false)}
+      onEndReachedThreshold={0.3}
+      ListHeaderComponent={
+        <>
+          {/* Tarjeta de Datos del Usuario */}
+          <Card style={styles.profileCard}>
+            <Card.Content style={styles.profileContent}>
+              <View style={styles.avatarContainer}>
+                <MaterialCommunityIcons name="account-circle" size={80} color="#10b981" />
+              </View>
+              <View style={styles.userInfo}>
+                <Text variant="headlineSmall" style={styles.username}>{user?.username}</Text>
+                <Text variant="bodyMedium" style={styles.email}>{user?.email}</Text>
+                <View style={styles.rolesRow}>
+                  {user?.roles.map((role, idx) => (
+                    <View key={idx} style={styles.roleBadge}>
+                      <Text style={styles.roleText}>{role.replace('ROLE_', '')}</Text>
                     </View>
-                    {isSaving ? (
-                      <ActivityIndicator size="small" color="#10b981" />
-                    ) : (
-                      <Switch 
-                        value={isSelected} 
-                        onValueChange={() => handleToggleAllergen(item)}
-                        color="#10b981"
-                      />
-                    )}
-                  </Pressable>
-                  {index < ingredients.length - 1 && <Divider style={styles.divider} />}
+                  ))}
                 </View>
-              );
-            })
-          )}
-        </Card.Content>
-      </Card>
+              </View>
+            </Card.Content>
+          </Card>
 
-      {/* Botón de Logout */}
-      <Button 
-        mode="outlined" 
-        onPress={handleLogout} 
-        style={styles.logoutButton}
-        textColor="#f43f5e"
-        icon="logout"
-      >
-        Cerrar Sesión
-      </Button>
-    </ScrollView>
+          {/* Sección de Alérgenos */}
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Catálogo de Alérgenos ({sessionAllergens.length} registrados)
+          </Text>
+        </>
+      }
+      ListEmptyComponent={
+        loading && ingredients.length === 0 ? (
+          <ActivityIndicator size="small" color="#10b981" style={{ padding: 20 }} />
+        ) : (
+          <Text style={styles.emptyText}>No hay ingredientes en el catálogo.</Text>
+        )
+      }
+      renderItem={({ item }) => {
+        const isSelected = sessionAllergens.some((a) => a.id === item.id);
+        const isSaving = savingId === item.id;
+
+        return (
+          <View style={styles.ingredientItemContainer}>
+            <Pressable 
+              onPress={() => !isSaving && handleToggleAllergen(item)}
+              style={styles.ingredientRow}
+            >
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text variant="bodyLarge" style={styles.ingredientName}>{item.name}</Text>
+                {item.description ? (
+                  <Text variant="bodySmall" style={styles.ingredientDesc}>{item.description}</Text>
+                ) : null}
+              </View>
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#10b981" />
+              ) : (
+                <Switch 
+                  value={isSelected} 
+                  onValueChange={() => handleToggleAllergen(item)}
+                  color="#10b981"
+                />
+              )}
+            </Pressable>
+          </View>
+        );
+      }}
+      ListFooterComponent={
+        <View style={{ marginTop: 20 }}>
+          {loadingMore && (
+            <ActivityIndicator size="small" color="#10b981" style={{ marginBottom: 16 }} />
+          )}
+          {/* Botón de Logout */}
+          <Button 
+            mode="outlined" 
+            onPress={handleLogout} 
+            style={styles.logoutButton}
+            textColor="#f43f5e"
+            icon="logout"
+          >
+            Cerrar Sesión
+          </Button>
+        </View>
+      }
+    />
   );
 }
 
@@ -226,12 +261,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginBottom: 12,
   },
-  allergensCard: {
+  ingredientItemContainer: {
     backgroundColor: '#0f172a',
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
-    marginBottom: 32,
+    marginBottom: 10,
     overflow: 'hidden',
   },
   ingredientRow: {

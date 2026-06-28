@@ -1,11 +1,11 @@
-import axios from 'axios';
+import axios, { create } from 'axios';
 import { useAuthStore } from '../store/useAuthStore';
 import { Platform } from 'react-native';
 
 const DEFAULT_URL = Platform.OS === 'android' ? 'http://10.0.2.2:8080/api/v1' : 'http://localhost:8080/api/v1';
 const API_URL = process.env.EXPO_PUBLIC_API_URL || DEFAULT_URL;
 
-export const api = axios.create({
+export const api = create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',

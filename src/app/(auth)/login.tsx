@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { TextInput, Button, Text, HelperText } from 'react-native-paper';
-import { Link, useRouter } from 'expo-router';
+import { StyleSheet, View, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { TextInput, Button, Text } from 'react-native-paper';
+import { Link } from 'expo-router';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
   const { login } = useAuthStore();
-  const router = useRouter();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');

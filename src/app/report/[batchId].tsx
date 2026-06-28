@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, View, Alert, Platform, Pressable, ScrollView } from 'react-native';
-import { Text, Card, Button, TextInput, useTheme } from 'react-native-paper';
+import { Text, Card, Button, TextInput } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../services/api';
 import * as Location from 'expo-location';
@@ -19,25 +19,29 @@ export default function CreateReportScreen() {
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    const fetchBatchDetails = async () => {
-      try {
-        setLoadingBatch(true);
-        const response = await api.get(`/batches/${batchId}/traceability`);
-        setBatchNumber(response.data.batchNumber);
-        setProductName(response.data.productName);
-      } catch (err: any) {
-        console.error(err);
-        Alert.alert('Error', 'No se pudieron recuperar los detalles del lote.');
-        router.back();
-      } finally {
-        setLoadingBatch(false);
-      }
-    };
-    if (batchId) {
-      fetchBatchDetails();
+  const fetchBatchDetails = useCallback(async () => {
+    try {
+      setLoadingBatch(true);
+      const response = await api.get(`/batches/${batchId}/traceability`);
+      setBatchNumber(response.data.batchNumber);
+      setProductName(response.data.productName);
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Error', 'No se pudieron recuperar los detalles del lote.');
+      router.back();
+    } finally {
+      setLoadingBatch(false);
     }
-  }, [batchId]);
+  }, [batchId, router]);
+
+  useEffect(() => {
+    if (batchId) {
+      const timer = setTimeout(() => {
+        fetchBatchDetails();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [batchId, fetchBatchDetails]);
 
   const handleSubmitReport = async () => {
     if (!title.trim() || !description.trim()) {

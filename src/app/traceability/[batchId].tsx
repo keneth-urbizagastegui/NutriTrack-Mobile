@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, View, ScrollView, Alert, Platform, Pressable } from 'react-native';
 import { Text, Card, Badge, Button, ActivityIndicator, Divider } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -61,15 +61,17 @@ export default function TraceabilityScreen() {
         .filter(step => userAllergenNames.includes(step.ingredientName.toLowerCase().trim()))
         .map(step => step.ingredientName);
       
-      setMatchedAllergens(matches);
-      
-      if (matches.length > 0) {
-        Alert.alert(
-          '⚠️ ALERTA DE ALÉRGENOS',
-          `Este lote contiene ingredientes a los que eres alérgico: ${matches.join(', ')}. Evita consumir este producto.`,
-          [{ text: 'Entendido' }]
-        );
-      }
+      const timer = setTimeout(() => {
+        setMatchedAllergens(matches);
+        if (matches.length > 0) {
+          Alert.alert(
+            '⚠️ ALERTA DE ALÉRGENOS',
+            `Este lote contiene ingredientes a los que eres alérgico: ${matches.join(', ')}. Evita consumir este producto.`,
+            [{ text: 'Entendido' }]
+          );
+        }
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [data, sessionAllergens]);
 
@@ -93,7 +95,7 @@ export default function TraceabilityScreen() {
     }
   };
 
-  const fetchTraceability = async () => {
+  const fetchTraceability = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get(`/batches/${batchId}/traceability`);
@@ -106,13 +108,16 @@ export default function TraceabilityScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [batchId, router]);
 
   useEffect(() => {
     if (batchId) {
-      fetchTraceability();
+      const timer = setTimeout(() => {
+        fetchTraceability();
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [batchId]);
+  }, [batchId, fetchTraceability]);
 
   const handleOpenCertificate = async (url: string) => {
     try {

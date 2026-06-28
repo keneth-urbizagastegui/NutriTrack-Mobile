@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import { api } from '../services/api';
 
 export interface UserSession {
   id: number;
@@ -40,26 +41,53 @@ export const useAuthStore = create<AuthState>((set) => ({
   sessionAllergens: [],
 
   login: async (username, access, refresh) => {
-    const roles = getRolesFromUsername(username);
-    const userData: UserSession = {
-      id: Date.now(),
-      username,
-      email: `${username}@utec.edu.pe`,
-      roles,
-    };
-
     await SecureStore.setItemAsync('accessToken', access);
     await SecureStore.setItemAsync('refreshToken', refresh);
-    await SecureStore.setItemAsync('user', JSON.stringify(userData));
-    await SecureStore.setItemAsync('sessionAllergens', JSON.stringify([]));
 
-    set({
-      user: userData,
-      accessToken: access,
-      refreshToken: refresh,
-      isAuthenticated: true,
-      sessionAllergens: [],
-    });
+    try {
+      const response = await api.get('/users/me', {
+        headers: { Authorization: `Bearer ${access}` }
+      });
+      const profile = response.data;
+      const roles = profile.roles.map((r: any) => r.name || r);
+      const userData: UserSession = {
+        id: profile.id,
+        username: profile.username,
+        email: profile.email,
+        roles,
+      };
+
+      await SecureStore.setItemAsync('user', JSON.stringify(userData));
+      await SecureStore.setItemAsync('sessionAllergens', JSON.stringify(profile.allergens || []));
+
+      set({
+        user: userData,
+        accessToken: access,
+        refreshToken: refresh,
+        isAuthenticated: true,
+        sessionAllergens: profile.allergens || [],
+      });
+    } catch (e) {
+      console.error('Error fetching profile on login', e);
+      const roles = getRolesFromUsername(username);
+      const userData: UserSession = {
+        id: Date.now(),
+        username,
+        email: `${username}@utec.edu.pe`,
+        roles,
+      };
+
+      await SecureStore.setItemAsync('user', JSON.stringify(userData));
+      await SecureStore.setItemAsync('sessionAllergens', JSON.stringify([]));
+
+      set({
+        user: userData,
+        accessToken: access,
+        refreshToken: refresh,
+        isAuthenticated: true,
+        sessionAllergens: [],
+      });
+    }
   },
 
   logout: async () => {
@@ -101,6 +129,32 @@ export const useAuthStore = create<AuthState>((set) => ({
         isAuthenticated: !!storedAccess,
         sessionAllergens: storedAllergens ? JSON.parse(storedAllergens) : [],
       });
+
+      if (storedAccess) {
+        try {
+          const response = await api.get('/users/me', {
+            headers: { Authorization: `Bearer ${storedAccess}` }
+          });
+          const profile = response.data;
+          const roles = profile.roles.map((r: any) => r.name || r);
+          const userData: UserSession = {
+            id: profile.id,
+            username: profile.username,
+            email: profile.email,
+            roles,
+          };
+
+          await SecureStore.setItemAsync('user', JSON.stringify(userData));
+          await SecureStore.setItemAsync('sessionAllergens', JSON.stringify(profile.allergens || []));
+
+          set({
+            user: userData,
+            sessionAllergens: profile.allergens || [],
+          });
+        } catch (serverErr) {
+          console.log('Background profile sync skipped', serverErr);
+        }
+      }
     } catch (e) {
       console.error('Error hydrating mobile auth session', e);
     }

@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { TextInput, Button, Text, HelperText } from 'react-native-paper';
+import { StyleSheet, View, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { TextInput, Button, Text } from 'react-native-paper';
 import { Link, useRouter } from 'expo-router';
 import { api } from '../../services/api';
-import { Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function RegisterScreen() {
