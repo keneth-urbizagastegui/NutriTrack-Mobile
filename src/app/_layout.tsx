@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect } from 'react'; // Re-evaluating imports
 import { useAuthStore } from '../store/useAuthStore';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { PaperProvider, MD3DarkTheme } from 'react-native-paper';

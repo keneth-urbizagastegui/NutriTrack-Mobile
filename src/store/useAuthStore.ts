@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
-import { api } from '../services/api';
+import { api } from '../services/api'; // Synchronized API client
 
 export interface UserSession {
   id: number;
