@@ -37,7 +37,10 @@ export default function ProfileScreen() {
   }, []);
 
   useEffect(() => {
-    fetchIngredients();
+    const timer = setTimeout(() => {
+      fetchIngredients();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchIngredients]);
 
   const handleToggleAllergen = async (ingredient: Ingredient) => {

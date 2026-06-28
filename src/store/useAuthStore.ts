@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
-import { api } from '../services/api'; // Synchronized API client
+import axios from 'axios';
+import { Platform } from 'react-native';
+
+const DEFAULT_URL = Platform.OS === 'android' ? 'http://10.0.2.2:8080/api/v1' : 'http://localhost:8080/api/v1';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || DEFAULT_URL;
 
 export interface UserSession {
   id: number;
@@ -45,7 +49,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     await SecureStore.setItemAsync('refreshToken', refresh);
 
     try {
-      const response = await api.get('/users/me', {
+      const response = await axios.get(`${API_URL}/users/me`, {
         headers: { Authorization: `Bearer ${access}` }
       });
       const profile = response.data;
@@ -132,7 +136,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       if (storedAccess) {
         try {
-          const response = await api.get('/users/me', {
+          const response = await axios.get(`${API_URL}/users/me`, {
             headers: { Authorization: `Bearer ${storedAccess}` }
           });
           const profile = response.data;
