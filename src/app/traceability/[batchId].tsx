@@ -12,6 +12,9 @@ interface TimelineStep {
   supplierName: string;
   arrivalDate: string;
   freshness: 'FRESH' | 'MATURING' | 'EXPIRED';
+  latitude?: number;
+  longitude?: number;
+  supplierAddress?: string;
 }
 
 interface Certificate {
@@ -89,10 +92,13 @@ export default function TraceabilityScreen() {
 
   // Extraer las coordenadas geográficas de los proveedores del lote
   const mapMarkers = data.timeline.map((step, idx) => {
-    const coords = SUPPLIER_COORDINATES[step.supplierName] || { 
-      latitude: -12.046374 + (idx * 0.02), 
-      longitude: -77.042793 - (idx * 0.02) 
-    }; // fallback con offset
+    const hasCoordinates = step.latitude !== undefined && step.latitude !== null && step.longitude !== undefined && step.longitude !== null;
+    const coords = hasCoordinates 
+      ? { latitude: step.latitude!, longitude: step.longitude! }
+      : (SUPPLIER_COORDINATES[step.supplierName] || { 
+          latitude: -12.046374 + (idx * 0.02), 
+          longitude: -77.042793 - (idx * 0.02) 
+        });
     return {
       id: idx,
       name: step.supplierName,
