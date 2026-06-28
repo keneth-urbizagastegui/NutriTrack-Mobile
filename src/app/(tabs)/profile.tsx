@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, View, FlatList, Pressable, Alert } from 'react-native';
-import { Text, Button, Card, Switch, ActivityIndicator } from 'react-native-paper';
+import { Text, Button, Card, Switch, ActivityIndicator, Searchbar } from 'react-native-paper';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -18,51 +18,27 @@ export default function ProfileScreen() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchIngredients = useCallback(async (resetPage = false) => {
-    const targetPage = resetPage ? 0 : page;
-    if (resetPage) {
-      setLoading(true);
-      setHasMore(true);
-    } else {
-      if (!hasMore || loadingMore) return;
-      setLoadingMore(true);
-    }
-
+  const fetchIngredients = useCallback(async () => {
+    setLoading(true);
     try {
       const response = await api.get('/ingredients', {
-        params: { page: targetPage, size: 15, sort: 'name,asc' }
+        params: { page: 0, size: 100, sort: 'name,asc' }
       });
       const content = response.data.content || [];
-      const isLast = response.data.last;
-
-      if (resetPage) {
-        setIngredients(content);
-        setPage(1);
-      } else {
-        setIngredients(prev => [...prev, ...content]);
-        setPage(targetPage + 1);
-      }
-      setHasMore(!isLast);
+      setIngredients(content);
     } catch (err: any) {
       console.error('Error fetching ingredients', err);
       Alert.alert('Error', 'No se pudo cargar el catálogo de ingredientes.');
     } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
-  }, [page, hasMore, loadingMore]);
+  }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchIngredients(true);
-    }, 0);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    fetchIngredients();
+  }, [fetchIngredients]);
 
   const handleToggleAllergen = async (ingredient: Ingredient) => {
     const isAlreadyAllergen = sessionAllergens.some((a) => a.id === ingredient.id);
@@ -74,7 +50,6 @@ export default function ProfileScreen() {
         
         const updated = sessionAllergens.filter((a) => a.id !== ingredient.id);
         await setSessionAllergens(updated);
-        Alert.alert('Éxito', `"${ingredient.name}" removido de tus alérgenos.`);
       } catch (err: any) {
         console.error(err);
         const errorMsg = err.response?.data?.message || 'Error al eliminar el alérgeno.';
@@ -91,8 +66,6 @@ export default function ProfileScreen() {
       
       const updated = [...sessionAllergens, ingredient];
       await setSessionAllergens(updated);
-      
-      Alert.alert('Éxito', `"${ingredient.name}" marcado como alérgeno.`);
     } catch (err: any) {
       console.error(err);
       const errorMsg = err.response?.data?.message || 'Error al guardar el alérgeno.';
@@ -104,17 +77,18 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     await logout();
-    // La navegación de _layout nos mandará a (auth)/login automáticamente
   };
+
+  const filteredIngredients = ingredients.filter((i) =>
+    i.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <FlatList
-      data={ingredients}
+      data={filteredIngredients}
       keyExtractor={(item) => item.id.toString()}
       style={styles.container}
       contentContainerStyle={styles.content}
-      onEndReached={() => fetchIngredients(false)}
-      onEndReachedThreshold={0.3}
       ListHeaderComponent={
         <>
           {/* Tarjeta de Datos del Usuario */}
@@ -159,15 +133,15 @@ export default function ProfileScreen() {
                       borderWidth: 1, 
                       paddingLeft: 10, 
                       paddingRight: 6, 
-                      paddingVertical: 6, 
+                      paddingVertical: 5, 
                       borderRadius: 8,
                     }}
                   >
-                    <Text style={{ color: '#f43f5e', fontSize: 12, fontWeight: 'bold', marginRight: 6 }}>
+                    <Text style={{ color: '#f43f5e', fontSize: 11, fontWeight: 'bold', marginRight: 4 }}>
                       {allergen.name}
                     </Text>
                     <Pressable onPress={() => handleToggleAllergen(allergen)}>
-                      <MaterialCommunityIcons name="close-circle" size={16} color="#f43f5e" />
+                      <MaterialCommunityIcons name="close-circle" size={14} color="#f43f5e" />
                     </Pressable>
                   </View>
                 ))}
@@ -175,17 +149,28 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          {/* Sección del Catálogo */}
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Catálogo de Ingredientes (Desliza para cargar más)
-          </Text>
+          {/* Sección del Catálogo con Buscador */}
+          <View style={{ marginBottom: 12 }}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Catálogo de Ingredientes ({filteredIngredients.length})
+            </Text>
+            <Searchbar
+              placeholder="Buscar ingrediente..."
+              onChangeText={setSearchQuery}
+              value={searchQuery}
+              style={styles.searchbar}
+              placeholderTextColor="#64748b"
+              iconColor="#10b981"
+              inputStyle={{ color: '#fff', fontSize: 14 }}
+            />
+          </View>
         </>
       }
       ListEmptyComponent={
-        loading && ingredients.length === 0 ? (
+        loading ? (
           <ActivityIndicator size="small" color="#10b981" style={{ padding: 20 }} />
         ) : (
-          <Text style={styles.emptyText}>No hay ingredientes en el catálogo.</Text>
+          <Text style={styles.emptyText}>No se encontraron ingredientes.</Text>
         )
       }
       renderItem={({ item }) => {
@@ -219,9 +204,6 @@ export default function ProfileScreen() {
       }}
       ListFooterComponent={
         <View style={{ marginTop: 20 }}>
-          {loadingMore && (
-            <ActivityIndicator size="small" color="#10b981" style={{ marginBottom: 16 }} />
-          )}
           {/* Botón de Logout */}
           <Button 
             mode="outlined" 
@@ -298,32 +280,37 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginBottom: 12,
   },
-  ingredientItemContainer: {
+  searchbar: {
     backgroundColor: '#0f172a',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+  ingredientItemContainer: {
+    backgroundColor: '#0f172a',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    marginBottom: 6,
     overflow: 'hidden',
   },
   ingredientRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   ingredientName: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 13,
   },
   ingredientDesc: {
     color: '#64748b',
-    marginTop: 2,
-    fontSize: 11,
-  },
-  divider: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginTop: 1,
+    fontSize: 10,
   },
   emptyText: {
     color: '#64748b',
