@@ -179,3 +179,30 @@ El desarrollo de **NutriTrack Mobile** consolida un ecosistema seguro, moderno y
 1. **Seguridad Robusta:** Utilizando encriptación en hardware real a través del Keystore/Keychain nativo con `expo-secure-store` y Zustand.
 2. **Acceso Nativo Eficiente:** Uso óptimo de la cámara, mapas y GPS para brindar una experiencia de usuario que la web tradicional no puede replicar.
 3. **Consistencia de Datos:** Integración limpia con el backend a través de interceptores HTTP inteligentes de Axios que resuelven refrescos de tokens silenciosos y toleran cambios de red locales.
+
+---
+
+## Generación de APK (EAS Build)
+
+La aplicación móvil está configurada en `eas.json` para compilar un instalable de pruebas tipo **APK** de Android. Para generar la APK de forma remota en los servidores de Expo:
+
+1. **Instalar EAS CLI** (si no lo tienes):
+   ```bash
+   npm install -g eas-cli
+   ```
+2. **Iniciar Sesión en Expo**:
+   ```bash
+   eas login
+   ```
+3. **Configurar el Proyecto**:
+   ```bash
+   eas project:init
+   ```
+4. **Ejecutar la Compilación del APK**:
+   ```bash
+   eas build --platform android --profile preview
+   ```
+5. **Descargar e Instalar**:
+   * Al finalizar el proceso de compilación, EAS te proporcionará un enlace de descarga directa y un código QR.
+   * Abre el enlace en tu celular Android o escanea el QR para descargar e instalar el archivo `.apk` de NutriTrack de forma inmediata.
+   * La APK ya viene preconfigurada con las variables de entorno de producción apuntando al backend seguro en la nube de AWS.
