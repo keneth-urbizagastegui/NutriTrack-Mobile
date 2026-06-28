@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { StyleSheet, View, FlatList, Pressable, Alert } from 'react-native';
-import { Text, Button, Card, Switch, ActivityIndicator, Searchbar } from 'react-native-paper';
+import { StyleSheet, View, ScrollView, Pressable, Alert } from 'react-native';
+import { Text, Button, Card, ActivityIndicator, Searchbar } from 'react-native-paper';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -84,139 +84,133 @@ export default function ProfileScreen() {
   );
 
   return (
-    <FlatList
-      data={filteredIngredients}
-      keyExtractor={(item) => item.id.toString()}
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      ListHeaderComponent={
-        <>
-          {/* Tarjeta de Datos del Usuario */}
-          <Card style={styles.profileCard}>
-            <Card.Content style={styles.profileContent}>
-              <View style={styles.avatarContainer}>
-                <MaterialCommunityIcons name="account-circle" size={80} color="#10b981" />
-              </View>
-              <View style={styles.userInfo}>
-                <Text variant="headlineSmall" style={styles.username}>{user?.username}</Text>
-                <Text variant="bodyMedium" style={styles.email}>{user?.email}</Text>
-                <View style={styles.rolesRow}>
-                  {user?.roles.map((role, idx) => (
-                    <View key={idx} style={styles.roleBadge}>
-                      <Text style={styles.roleText}>{role.replace('ROLE_', '')}</Text>
-                    </View>
-                  ))}
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Tarjeta de Datos del Usuario */}
+      <Card style={styles.profileCard}>
+        <Card.Content style={styles.profileContent}>
+          <View style={styles.avatarContainer}>
+            <MaterialCommunityIcons name="account-circle" size={80} color="#10b981" />
+          </View>
+          <View style={styles.userInfo}>
+            <Text variant="headlineSmall" style={styles.username}>{user?.username}</Text>
+            <Text variant="bodyMedium" style={styles.email}>{user?.email}</Text>
+            <View style={styles.rolesRow}>
+              {user?.roles.map((role, idx) => (
+                <View key={idx} style={styles.roleBadge}>
+                  <Text style={styles.roleText}>{role.replace('ROLE_', '')}</Text>
                 </View>
-              </View>
-            </Card.Content>
-          </Card>
-
-          {/* Sección de Alérgenos Activos */}
-          <View style={{ marginBottom: 24 }}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Mis Alérgenos Registrados ({sessionAllergens.length})
-            </Text>
-            {sessionAllergens.length === 0 ? (
-              <Text style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>
-                No tienes alérgenos registrados en tu perfil.
-              </Text>
-            ) : (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                {sessionAllergens.map((allergen: any) => (
-                  <View 
-                    key={allergen.id} 
-                    style={{ 
-                      flexDirection: 'row', 
-                      alignItems: 'center', 
-                      backgroundColor: 'rgba(244, 63, 94, 0.1)', 
-                      borderColor: 'rgba(244, 63, 94, 0.2)', 
-                      borderWidth: 1, 
-                      paddingLeft: 10, 
-                      paddingRight: 6, 
-                      paddingVertical: 5, 
-                      borderRadius: 8,
-                    }}
-                  >
-                    <Text style={{ color: '#f43f5e', fontSize: 11, fontWeight: 'bold', marginRight: 4 }}>
-                      {allergen.name}
-                    </Text>
-                    <Pressable onPress={() => handleToggleAllergen(allergen)}>
-                      <MaterialCommunityIcons name="close-circle" size={14} color="#f43f5e" />
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
-            )}
+              ))}
+            </View>
           </View>
+        </Card.Content>
+      </Card>
 
-          {/* Sección del Catálogo con Buscador */}
-          <View style={{ marginBottom: 12 }}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Catálogo de Ingredientes ({filteredIngredients.length})
-            </Text>
-            <Searchbar
-              placeholder="Buscar ingrediente..."
-              onChangeText={setSearchQuery}
-              value={searchQuery}
-              style={styles.searchbar}
-              placeholderTextColor="#64748b"
-              iconColor="#10b981"
-              inputStyle={{ color: '#fff', fontSize: 14 }}
-            />
-          </View>
-        </>
-      }
-      ListEmptyComponent={
-        loading ? (
-          <ActivityIndicator size="small" color="#10b981" style={{ padding: 20 }} />
+      {/* Sección de Alérgenos Activos */}
+      <View style={{ marginBottom: 24 }}>
+        <Text variant="titleMedium" style={styles.sectionTitle}>
+          Mis Alérgenos Registrados ({sessionAllergens.length})
+        </Text>
+        {sessionAllergens.length === 0 ? (
+          <Text style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>
+            No tienes alérgenos registrados en tu perfil.
+          </Text>
         ) : (
-          <Text style={styles.emptyText}>No se encontraron ingredientes.</Text>
-        )
-      }
-      renderItem={({ item }) => {
-        const isSelected = sessionAllergens.some((a) => a.id === item.id);
-        const isSaving = savingId === item.id;
-
-        return (
-          <View style={styles.ingredientItemContainer}>
-            <Pressable 
-              onPress={() => !isSaving && handleToggleAllergen(item)}
-              style={styles.ingredientRow}
-            >
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Text variant="bodyLarge" style={styles.ingredientName}>{item.name}</Text>
-                {item.description ? (
-                  <Text variant="bodySmall" style={styles.ingredientDesc}>{item.description}</Text>
-                ) : null}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+            {sessionAllergens.map((allergen: any) => (
+              <View 
+                key={allergen.id} 
+                style={{ 
+                  flexDirection: 'row', 
+                  alignItems: 'center', 
+                  backgroundColor: 'rgba(244, 63, 94, 0.1)', 
+                  borderColor: 'rgba(244, 63, 94, 0.2)', 
+                  borderWidth: 1, 
+                  paddingLeft: 10, 
+                  paddingRight: 6, 
+                  paddingVertical: 5, 
+                  borderRadius: 8,
+                }}
+              >
+                <Text style={{ color: '#f43f5e', fontSize: 11, fontWeight: 'bold', marginRight: 4 }}>
+                  {allergen.name}
+                </Text>
+                <Pressable onPress={() => handleToggleAllergen(allergen)}>
+                  <MaterialCommunityIcons name="close-circle" size={14} color="#f43f5e" />
+                </Pressable>
               </View>
-              {isSaving ? (
-                <ActivityIndicator size="small" color="#10b981" />
-              ) : (
-                <Switch 
-                  value={isSelected} 
-                  onValueChange={() => handleToggleAllergen(item)}
-                  color="#10b981"
-                />
-              )}
-            </Pressable>
+            ))}
           </View>
-        );
-      }}
-      ListFooterComponent={
-        <View style={{ marginTop: 20 }}>
-          {/* Botón de Logout */}
-          <Button 
-            mode="outlined" 
-            onPress={handleLogout} 
-            style={styles.logoutButton}
-            textColor="#f43f5e"
-            icon="logout"
-          >
-            Cerrar Sesión
-          </Button>
+        )}
+      </View>
+
+      {/* Sección del Catálogo con Buscador */}
+      <View style={{ marginBottom: 12 }}>
+        <Text variant="titleMedium" style={styles.sectionTitle}>
+          Catálogo de Ingredientes ({filteredIngredients.length})
+        </Text>
+        <Searchbar
+          placeholder="Buscar ingrediente..."
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={styles.searchbar}
+          placeholderTextColor="#64748b"
+          iconColor="#10b981"
+          inputStyle={{ color: '#fff', fontSize: 14 }}
+        />
+      </View>
+
+      {/* Grid de Chips de Ingredientes */}
+      {loading ? (
+        <ActivityIndicator size="small" color="#10b981" style={{ padding: 20 }} />
+      ) : filteredIngredients.length === 0 ? (
+        <Text style={styles.emptyText}>No se encontraron ingredientes.</Text>
+      ) : (
+        <View style={styles.chipsContainer}>
+          {filteredIngredients.map((item) => {
+            const isSelected = sessionAllergens.some((a) => a.id === item.id);
+            const isSaving = savingId === item.id;
+
+            return (
+              <Pressable 
+                key={item.id}
+                onPress={() => !isSaving && handleToggleAllergen(item)}
+                style={[
+                  styles.allergenChip,
+                  isSelected ? styles.allergenChipSelected : styles.allergenChipUnselected
+                ]}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#10b981" style={{ marginRight: 4 }} />
+                ) : isSelected ? (
+                  <MaterialCommunityIcons name="alert-circle" size={14} color="#f43f5e" style={{ marginRight: 4 }} />
+                ) : (
+                  <MaterialCommunityIcons name="circle-outline" size={14} color="#64748b" style={{ marginRight: 4 }} />
+                )}
+                <Text style={[
+                  styles.chipText,
+                  isSelected ? styles.chipTextSelected : styles.chipTextUnselected
+                ]}>
+                  {item.name}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
-      }
-    />
+      )}
+
+      {/* Botón de Logout */}
+      <View style={{ marginTop: 30 }}>
+        <Button 
+          mode="outlined" 
+          onPress={handleLogout} 
+          style={styles.logoutButton}
+          textColor="#f43f5e"
+          icon="logout"
+        >
+          Cerrar Sesión
+        </Button>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -285,32 +279,38 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  ingredientItemContainer: {
-    backgroundColor: '#0f172a',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    marginBottom: 6,
-    overflow: 'hidden',
-  },
-  ingredientRow: {
+  chipsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  allergenChip: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
     paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
   },
-  ingredientName: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 13,
+  allergenChipSelected: {
+    backgroundColor: 'rgba(244, 63, 94, 0.12)',
+    borderColor: 'rgba(244, 63, 94, 0.3)',
   },
-  ingredientDesc: {
-    color: '#64748b',
-    marginTop: 1,
-    fontSize: 10,
+  allergenChipUnselected: {
+    backgroundColor: '#0f172a',
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  chipTextSelected: {
+    color: '#f43f5e',
+  },
+  chipTextUnselected: {
+    color: '#94a3b8',
   },
   emptyText: {
     color: '#64748b',
