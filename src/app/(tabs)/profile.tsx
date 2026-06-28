@@ -61,26 +61,27 @@ export default function ProfileScreen() {
       fetchIngredients(true);
     }, 0);
     return () => clearTimeout(timer);
-  }, [fetchIngredients]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleToggleAllergen = async (ingredient: Ingredient) => {
     const isAlreadyAllergen = sessionAllergens.some((a) => a.id === ingredient.id);
 
     if (isAlreadyAllergen) {
-      Alert.alert(
-        'Limpiar Alérgenos',
-        'El backend no cuenta con una API para desvincular alérgenos individuales. ¿Deseas limpiar todos tus alérgenos registrados localmente?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { 
-            text: 'Sí, Limpiar', 
-            onPress: () => {
-              setSessionAllergens([]);
-              Alert.alert('Éxito', 'Se limpiaron tus alérgenos locales.');
-            }
-          }
-        ]
-      );
+      try {
+        setSavingId(ingredient.id);
+        await api.delete(`/users/allergens/${ingredient.id}`);
+        
+        const updated = sessionAllergens.filter((a) => a.id !== ingredient.id);
+        await setSessionAllergens(updated);
+        Alert.alert('Éxito', `"${ingredient.name}" removido de tus alérgenos.`);
+      } catch (err: any) {
+        console.error(err);
+        const errorMsg = err.response?.data?.message || 'Error al eliminar el alérgeno.';
+        Alert.alert('Error', errorMsg);
+      } finally {
+        setSavingId(null);
+      }
       return;
     }
 
@@ -136,9 +137,47 @@ export default function ProfileScreen() {
             </Card.Content>
           </Card>
 
-          {/* Sección de Alérgenos */}
+          {/* Sección de Alérgenos Activos */}
+          <View style={{ marginBottom: 24 }}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Mis Alérgenos Registrados ({sessionAllergens.length})
+            </Text>
+            {sessionAllergens.length === 0 ? (
+              <Text style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>
+                No tienes alérgenos registrados en tu perfil.
+              </Text>
+            ) : (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                {sessionAllergens.map((allergen: any) => (
+                  <View 
+                    key={allergen.id} 
+                    style={{ 
+                      flexDirection: 'row', 
+                      alignItems: 'center', 
+                      backgroundColor: 'rgba(244, 63, 94, 0.1)', 
+                      borderColor: 'rgba(244, 63, 94, 0.2)', 
+                      borderWidth: 1, 
+                      paddingLeft: 10, 
+                      paddingRight: 6, 
+                      paddingVertical: 6, 
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text style={{ color: '#f43f5e', fontSize: 12, fontWeight: 'bold', marginRight: 6 }}>
+                      {allergen.name}
+                    </Text>
+                    <Pressable onPress={() => handleToggleAllergen(allergen)}>
+                      <MaterialCommunityIcons name="close-circle" size={16} color="#f43f5e" />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Sección del Catálogo */}
           <Text variant="titleMedium" style={styles.sectionTitle}>
-            Catálogo de Alérgenos ({sessionAllergens.length} registrados)
+            Catálogo de Ingredientes (Desliza para cargar más)
           </Text>
         </>
       }

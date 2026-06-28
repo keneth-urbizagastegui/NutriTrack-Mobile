@@ -174,7 +174,8 @@ export default function HomeScreen() {
       fetchConsumption(true);
     }, 0);
     return () => clearTimeout(timer);
-  }, [fetchConsumption]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -186,7 +187,8 @@ export default function HomeScreen() {
       fetchConsumption(true);
     }, 10000);
     return () => clearInterval(interval);
-  }, [fetchConsumption]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <FlatList
