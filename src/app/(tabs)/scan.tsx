@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Button, Pressable, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ScrollView } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter, useNavigation } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';

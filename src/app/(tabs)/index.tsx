@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, FlatList, RefreshControl } from 'react-native';
 import { Text, Button, Card, ProgressBar } from 'react-native-paper';
 import { useRouter } from 'expo-router';
@@ -113,7 +113,7 @@ export default function HomeScreen() {
 
   const targets = { protein: 150, carbs: 200, fat: 70, calories: 2000 };
 
-  const fetchConsumption = async (resetPage = false) => {
+  const fetchConsumption = useCallback(async (resetPage = false) => {
     const targetPage = resetPage ? 0 : page;
     if (resetPage) {
       setLoading(true);
@@ -167,14 +167,14 @@ export default function HomeScreen() {
       setLoadingMore(false);
       setRefreshing(false);
     }
-  };
+  }, [page, hasMore, loadingMore, history]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchConsumption(true);
     }, 0);
     return () => clearTimeout(timer);
-  }, []);
+  }, [fetchConsumption]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -186,7 +186,7 @@ export default function HomeScreen() {
       fetchConsumption(true);
     }, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchConsumption]);
 
   return (
     <FlatList

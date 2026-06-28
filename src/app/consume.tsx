@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, Alert, Modal, FlatList, Pressable, ScrollView, Platform } from 'react-native';
 import { Text, Button, TextInput, Card, Divider, Searchbar } from 'react-native-paper';
 import { useRouter } from 'expo-router';
@@ -25,7 +25,7 @@ export default function ConsumeScreen() {
   const [isPickerVisible, setIsPickerVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchActiveBatches = async () => {
+  const fetchActiveBatches = useCallback(async () => {
     try {
       setLoadingBatches(true);
       const response = await api.get('/batches');
@@ -36,11 +36,14 @@ export default function ConsumeScreen() {
     } finally {
       setLoadingBatches(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchActiveBatches();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchActiveBatches();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchActiveBatches]);
 
   const handleRegisterConsumption = async () => {
     if (!selectedBatch || !quantityGrams) {

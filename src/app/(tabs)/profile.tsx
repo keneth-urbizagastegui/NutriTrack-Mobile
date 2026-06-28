@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, View, FlatList, Pressable, Alert } from 'react-native';
-import { Text, Button, Card, Switch, Divider, ActivityIndicator } from 'react-native-paper';
-import { useRouter } from 'expo-router';
+import { Text, Button, Card, Switch, ActivityIndicator } from 'react-native-paper';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -14,7 +13,6 @@ interface Ingredient {
 }
 
 export default function ProfileScreen() {
-  const router = useRouter();
   const { user, logout, sessionAllergens, setSessionAllergens } = useAuthStore();
 
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -24,7 +22,7 @@ export default function ProfileScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchIngredients = async (resetPage = false) => {
+  const fetchIngredients = useCallback(async (resetPage = false) => {
     const targetPage = resetPage ? 0 : page;
     if (resetPage) {
       setLoading(true);
@@ -56,14 +54,14 @@ export default function ProfileScreen() {
       setLoading(false);
       setLoadingMore(false);
     }
-  };
+  }, [page, hasMore, loadingMore]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchIngredients(true);
     }, 0);
     return () => clearTimeout(timer);
-  }, []);
+  }, [fetchIngredients]);
 
   const handleToggleAllergen = async (ingredient: Ingredient) => {
     const isAlreadyAllergen = sessionAllergens.some((a) => a.id === ingredient.id);

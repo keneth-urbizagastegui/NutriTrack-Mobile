@@ -1,9 +1,7 @@
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from 'react-native-paper';
 
 export default function TabsLayout() {
-  const theme = useTheme();
 
   return (
     <Tabs
